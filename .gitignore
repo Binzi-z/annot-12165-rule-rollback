@@ -3,3 +3,5 @@ __pycache__/
 .pytest_cache/
 alerts.json
 timeline.json
+rules/state/
+demo_workdir/

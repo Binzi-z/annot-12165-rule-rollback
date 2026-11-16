@@ -1,0 +1,31 @@
+# 风控规则书（人类可读文本，热更新）
+#
+# 语法：每条规则由若干 "键: 值" 行组成，规则之间用空行分隔；
+#       # 开头为注释。修改本文件后重新运行 engine.py 即可生效，无需发版。
+#
+# 通用键：
+#   rule    规则名（必填，唯一）
+#   window  滑动窗口长度（秒，整数 > 0）
+#   count   窗口内事件条数阈值（整数 > 0）
+#   action  事件动作（pay / withdraw / login / refund / view）
+#   amount  金额阈值（数字，事件 amount >= 该值时命中）
+#   region  unseen 表示“该账户在窗口开始前从未出现过的 ip_region”
+#   require_new_device  true 表示只统计账户首次出现该 device 的 login 之后的事件
+#   follow_window       新设备 login 之后允许发生后续事件的最长秒数
+#
+# 加载失败（语法/取值/未知键/规则名缺失等）时引擎会自动回滚到上一版，
+# 原因写入 rules/state/load_log.json，正在运行的规则不受影响。
+
+rule: burst_small_pay
+# 12 笔支付在 60 秒内完成，且来自该账户未见过的地区
+window: 60
+count: 12
+action: pay
+region: unseen
+
+rule: new_device_big_withdraw
+# 新设备登录后的 300 秒内，发生一笔 >= 40000 的提现
+require_new_device: true
+follow_window: 300
+action: withdraw
+amount: 40000
