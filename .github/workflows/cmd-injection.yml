@@ -1,0 +1,70 @@
+# 命令注入污点分析器接入 CI。
+# 全量扫描在 206k 行语料上约 5s；增量扫描（带缓存）约 60~100ms。
+name: command-injection-scan
+
+on:
+  push:
+    paths:
+      - "firmware/**"
+      - "analyzer/**"
+      - "config/sanitizers.json"
+  pull_request:
+    paths:
+      - "firmware/**"
+      - "analyzer/**"
+
+jobs:
+  taint-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e . tree-sitter tree-sitter-cpp
+
+      - name: Full taint scan (SARIF)
+        run: >
+          python -m analyzer.cli scan
+          --root firmware
+          --config config/sanitizers.json
+          --sarif cmd-injection.sarif
+          --stats
+
+      - name: Quality gate (recall >= 85%, FPR <= 15% against labels.json)
+        run: python eval.py cmd-injection.sarif
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: cmd-injection.sarif
+
+  incremental:
+    runs-on: ubuntu-latest
+    needs: taint-scan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e . tree-sitter tree-sitter-cpp
+
+      # 增量扫描：缓存命中时只重解析变更 TU 及其反向依赖，输出仍为全量视图。
+      - name: Incremental scan with cache
+        uses: actions/cache@v4
+        with:
+          path: .analyzer-cache.json
+          key: taint-cache-${{ github.sha }}
+          restore-keys: taint-cache-
+      - run: >
+          python -m analyzer.cli scan
+          --root firmware --config config/sanitizers.json
+          --changed firmware
+          --cache .analyzer-cache.json
+          --sarif cmd-injection-inc.sarif
+          --stats

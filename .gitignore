@@ -6,3 +6,6 @@ o.json
 report.json
 *.sarif
 .venv/
+.analyzer-cache.json
+*.tmp.json
+*.tmp.sarif
