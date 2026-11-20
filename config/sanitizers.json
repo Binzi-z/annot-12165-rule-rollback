@@ -1,0 +1,51 @@
+{
+  "note": "可配置的净化 / 包装白名单。分析器读它决定哪些调用不算漏洞；增删条目应该能改变召回与误报，用来做消融实验。",
+  "sources": {
+    "config_file": [
+      "cfg_get_str",
+      "cfg_get_int"
+    ],
+    "network_downlink": [
+      "pkt_str",
+      "pkt_decode"
+    ],
+    "env_var": [
+      "getenv",
+      "secure_getenv"
+    ]
+  },
+  "sanitizers": [
+    {
+      "name": "cmd_allowlist_ok",
+      "kind": "whitelist",
+      "returns": "bool",
+      "note": "调用前必须命中 BOM 白名单"
+    },
+    {
+      "name": "execv",
+      "kind": "parameterized_exec",
+      "note": "argv 元素直接作为参数传入、不经过 sh -c 时算净化"
+    },
+    {
+      "name": "execve",
+      "kind": "parameterized_exec"
+    },
+    {
+      "name": "posix_spawn",
+      "kind": "parameterized_exec"
+    }
+  ],
+  "shell_wrappers": [
+    "shell_run",
+    "cmd_run",
+    "tmpl_exec",
+    "RUN_SHELL"
+  ],
+  "template_dirs": [
+    "templates"
+  ],
+  "safe_templates": [
+    "rotate.sh.j2",
+    "selftest.sh.j2"
+  ]
+}
